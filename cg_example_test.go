@@ -11,7 +11,7 @@ import (
 	"github.com/vladimir-ch/iterative"
 )
 
-func L2Projector(x0, x1 float64, n int, f func(float64) float64) (a iterative.Matrix, b []float64) {
+func L2Projector(x0, x1 float64, n int, f func(float64) float64) (a iterative.MatrixOps, b []float64) {
 	h := (x1 - x0) / float64(n)
 
 	matvec := func(dst, src []float64) {
@@ -30,7 +30,7 @@ func L2Projector(x0, x1 float64, n int, f func(float64) float64) (a iterative.Ma
 	}
 	b[n] = f(x1) * h / 2
 
-	return iterative.Matrix{MatVec: matvec}, b
+	return iterative.MatrixOps{MatVec: matvec}, b
 }
 
 func ExampleCG() {
@@ -42,7 +42,7 @@ func ExampleCG() {
 		fmt.Println("Error:", err)
 	} else {
 		fmt.Printf("# iterations: %v\n", res.Stats.Iterations)
-		fmt.Printf("Final residual: %v\n", res.Stats.Residual)
+		fmt.Printf("Final residual: %v\n", res.Stats.ResidualNorm)
 		fmt.Printf("Solution: %.6f\n", res.X)
 	}
 

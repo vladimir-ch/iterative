@@ -11,17 +11,17 @@ import (
 	"github.com/gonum/floats"
 )
 
-type Matrix struct {
+type MatrixOps struct {
 	MatVec      func(dst, src []float64)
 	MatTransVec func(dst, src []float64)
 }
 
 type Settings struct {
-	Tolerance   float64
-	Iterations  int
-	X0          []float64
-	PSolve      func(dst, rhs []float64) error
-	PSolveTrans func(dst, rhs []float64) error
+	Tolerance     float64
+	MaxIterations int
+	X0            []float64
+	PSolve        func(dst, rhs []float64) error
+	PSolveTrans   func(dst, rhs []float64) error
 }
 
 type Operation uint64
@@ -32,31 +32,33 @@ const (
 	MatTransVec
 	PSolve
 	PSolveTrans
-	ComputeResidual
-	CheckConvergence
-	Iteration
+	CheckResidual
+	CheckResidualNorm
+	EndIteration
 )
 
 type Method interface {
-	Init(dim int) (lwork int)
+	Init(dim int) (nvec int)
 	Iterate(*Context) (Operation, error)
 }
 
 type Context struct {
-	X         []float64
-	Residual  []float64
-	Converged bool
-	Work      [][]float64
-	Src, Dst  int
+	X            []float64
+	Residual     []float64
+	ResidualNorm float64
+	Converged    bool
+
+	Vectors  [][]float64
+	Src, Dst int
 }
 
 type Stats struct {
-	Iterations int
-	MatVec     int
-	PSolve     int
-	Residual   float64
-	StartTime  time.Time
-	Runtime    time.Duration
+	Iterations   int
+	MatVec       int
+	PSolve       int
+	ResidualNorm float64
+	StartTime    time.Time
+	Runtime      time.Duration
 }
 
 type Result struct {
@@ -64,7 +66,7 @@ type Result struct {
 	Stats Stats
 }
 
-func Solve(a Matrix, b []float64, method Method, settings Settings) (Result, error) {
+func Solve(a MatrixOps, b []float64, method Method, settings Settings) (Result, error) {
 	stats := Stats{StartTime: time.Now()}
 
 	dim := len(b)
@@ -86,13 +88,15 @@ func Solve(a Matrix, b []float64, method Method, settings Settings) (Result, err
 	if settings.X0 != nil {
 		copy(ctx.X, settings.X0)
 		a.MatVec(ctx.Residual, ctx.X)
+		stats.MatVec++
 		floats.AddScaledTo(ctx.Residual, b, -1, ctx.Residual) // r = b - Ax
 	} else {
 		copy(ctx.Residual, b) // r = b
 	}
 
+	ctx.ResidualNorm = floats.Norm(ctx.Residual, 2)
 	var err error
-	if floats.Norm(ctx.Residual, 2) >= settings.Tolerance {
+	if ctx.ResidualNorm >= settings.Tolerance {
 		err = iterate(a, b, ctx, settings, method, &stats)
 	}
 
@@ -103,17 +107,17 @@ func Solve(a Matrix, b []float64, method Method, settings Settings) (Result, err
 	}, err
 }
 
-func iterate(a Matrix, b []float64, ctx *Context, settings Settings, method Method, stats *Stats) error {
+func iterate(a MatrixOps, b []float64, ctx *Context, settings Settings, method Method, stats *Stats) error {
 	dim := len(ctx.X)
 	bnorm := floats.Norm(b, 2)
 	if bnorm == 0 {
 		bnorm = 1
 	}
 
-	lwork := method.Init(dim)
-	ctx.Work = make([][]float64, lwork)
-	for i := range ctx.Work {
-		ctx.Work[i] = make([]float64, dim)
+	nvec := method.Init(dim)
+	ctx.Vectors = make([][]float64, nvec)
+	for i := range ctx.Vectors {
+		ctx.Vectors[i] = make([]float64, dim)
 	}
 
 	for {
@@ -125,13 +129,9 @@ func iterate(a Matrix, b []float64, ctx *Context, settings Settings, method Meth
 		switch op {
 		case NoOperation:
 
-		case ComputeResidual:
-			a.MatVec(ctx.Residual, ctx.X)
-			floats.AddScaledTo(ctx.Residual, b, -1, ctx.Residual)
-
 		case MatVec, MatTransVec:
-			dst := ctx.Work[ctx.Dst]
-			src := ctx.Work[ctx.Src]
+			dst := ctx.Vectors[ctx.Dst]
+			src := ctx.Vectors[ctx.Src]
 			if op == MatVec {
 				a.MatVec(dst, src)
 			} else {
@@ -140,8 +140,8 @@ func iterate(a Matrix, b []float64, ctx *Context, settings Settings, method Meth
 			stats.MatVec++
 
 		case PSolve, PSolveTrans:
-			dst := ctx.Work[ctx.Dst]
-			src := ctx.Work[ctx.Src]
+			dst := ctx.Vectors[ctx.Dst]
+			src := ctx.Vectors[ctx.Src]
 			if settings.PSolve == nil {
 				copy(dst, src)
 				continue
@@ -156,16 +156,19 @@ func iterate(a Matrix, b []float64, ctx *Context, settings Settings, method Meth
 			}
 			stats.PSolve++
 
-		case CheckConvergence:
-			stats.Residual = floats.Norm(ctx.Residual, 2) / bnorm
-			ctx.Converged = stats.Residual < settings.Tolerance
+		case CheckResidual, CheckResidualNorm:
+			if op == CheckResidual {
+				ctx.ResidualNorm = floats.Norm(ctx.Residual, 2) / bnorm
+			}
+			ctx.Converged = ctx.ResidualNorm < settings.Tolerance
 
-		case Iteration:
+		case EndIteration:
 			stats.Iterations++
+			stats.ResidualNorm = ctx.ResidualNorm
 			if ctx.Converged {
 				return nil
 			}
-			if stats.Iterations == settings.Iterations {
+			if stats.Iterations == settings.MaxIterations {
 				return errors.New("iterative: iteration limit reached")
 			}
 
@@ -185,7 +188,9 @@ func defaultSettings(s *Settings, dim int) {
 	if s.Tolerance == 0 {
 		s.Tolerance = 1e-6
 	}
-	if s.Iterations == 0 {
-		s.Iterations = 2 * dim
+	if s.MaxIterations == 0 {
+		s.MaxIterations = 2 * dim
 	}
 }
+
+const dlamchE = 1.0 / (1 << 53)

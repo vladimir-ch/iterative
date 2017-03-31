@@ -25,8 +25,11 @@ func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 		pi
 		Api
 	)
-	r := ctx.Work[ri]
+	r := ctx.Vectors[ri]
 	switch cg.resume {
+	default:
+		panic("iterative: CG.Init not called")
+
 	case 1:
 		if cg.first {
 			copy(r, ctx.Residual)
@@ -37,7 +40,7 @@ func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 		return PSolve, nil
 		// Solve M z = r_{i-1}
 	case 2:
-		z, p := ctx.Work[zi], ctx.Work[pi]
+		z, p := ctx.Vectors[zi], ctx.Vectors[pi]
 		cg.rho = floats.Dot(r, z) // ρ_i = r_{i-1} · z
 		if cg.first {
 			cg.first = false
@@ -53,7 +56,7 @@ func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 		return MatVec, nil
 		// Compute Ap_i
 	case 3:
-		p, Ap := ctx.Work[pi], ctx.Work[Api]
+		p, Ap := ctx.Vectors[pi], ctx.Vectors[Api]
 		alpha := cg.rho / floats.Dot(p, Ap) // α = ρ_i / (p_i · Ap_i)
 		floats.AddScaled(r, -alpha, Ap)     // r_i = r_{i-1} - α Ap_i
 		floats.AddScaled(ctx.X, alpha, p)   // x_i = x_{i-1} + α p_i
@@ -62,11 +65,10 @@ func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 		ctx.Src = -1
 		ctx.Dst = -1
 		cg.resume = 4
-		return CheckConvergence, nil
+		return CheckResidual, nil
 	case 4:
 		cg.rho1 = cg.rho
 		cg.resume = 1
-		return Iteration, nil
+		return EndIteration, nil
 	}
-	panic("unreachable")
 }
