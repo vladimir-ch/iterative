@@ -63,6 +63,7 @@ func (bicg *BiCG) Iterate(ctx *Context) (Operation, error) {
 	case 3:
 		bicg.rho = floats.Dot(ctx.Vectors[zi], ctx.Vectors[rti])
 		if math.Abs(bicg.rho) < dlamchE*dlamchE {
+			bicg.resume = 0
 			return NoOperation, errors.New("iterative: rho breakdown")
 		}
 		if !bicg.first {
@@ -70,7 +71,6 @@ func (bicg *BiCG) Iterate(ctx *Context) (Operation, error) {
 			floats.AddScaled(ctx.Vectors[zi], beta, ctx.Vectors[pi])
 			floats.AddScaled(ctx.Vectors[zti], beta, ctx.Vectors[pti])
 		}
-		bicg.first = false
 		copy(ctx.Vectors[pi], ctx.Vectors[zi])
 		copy(ctx.Vectors[pti], ctx.Vectors[zti])
 		ctx.Src = pi
@@ -90,19 +90,21 @@ func (bicg *BiCG) Iterate(ctx *Context) (Operation, error) {
 		floats.AddScaled(ctx.Residual, -bicg.alpha, ctx.Vectors[qi])
 		ctx.Src = -1
 		ctx.Dst = -1
+		ctx.Converged = false
 		bicg.resume = 6
 		return CheckResidual, nil
 	case 6:
 		if ctx.Converged {
 			// Make sure calling Iterate again without Init will panic.
 			bicg.resume = 0
-		} else {
-			// Prepare for the next iteration.
-			copy(ctx.Vectors[ri], ctx.Residual)
-			floats.AddScaled(ctx.Vectors[rti], -bicg.alpha, ctx.Vectors[qti])
-			bicg.rhoPrev = bicg.rho
-			bicg.resume = 1
+			return EndIteration, nil
 		}
+		// Prepare for the next iteration.
+		copy(ctx.Vectors[ri], ctx.Residual)
+		floats.AddScaled(ctx.Vectors[rti], -bicg.alpha, ctx.Vectors[qti])
+		bicg.rhoPrev = bicg.rho
+		bicg.first = false
+		bicg.resume = 1
 		return EndIteration, nil
 
 	default:

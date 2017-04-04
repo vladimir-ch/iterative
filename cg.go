@@ -7,9 +7,9 @@ package iterative
 import "github.com/gonum/floats"
 
 type CG struct {
-	first     bool
-	rho, rho1 float64
-	resume    int
+	first        bool
+	rho, rhoPrev float64
+	resume       int
 }
 
 func (cg *CG) Init(dim int) int {
@@ -27,9 +27,6 @@ func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 	)
 	r := ctx.Vectors[ri]
 	switch cg.resume {
-	default:
-		panic("iterative: CG.Init not called")
-
 	case 1:
 		if cg.first {
 			copy(r, ctx.Residual)
@@ -42,10 +39,8 @@ func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 	case 2:
 		z, p := ctx.Vectors[zi], ctx.Vectors[pi]
 		cg.rho = floats.Dot(r, z) // ρ_i = r_{i-1} · z
-		if cg.first {
-			cg.first = false
-		} else {
-			beta := cg.rho / cg.rho1     // β = ρ_i / ρ_{i-1}
+		if !cg.first {
+			beta := cg.rho / cg.rhoPrev  // β = ρ_i / ρ_{i-1}
 			floats.AddScaled(z, beta, p) // z = z + β p_{i-1}
 		}
 		copy(p, z) // p_i = z
@@ -64,11 +59,20 @@ func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 		copy(ctx.Residual, r)
 		ctx.Src = -1
 		ctx.Dst = -1
+		ctx.Converged = false
 		cg.resume = 4
 		return CheckResidual, nil
 	case 4:
-		cg.rho1 = cg.rho
+		if ctx.Converged {
+			cg.resume = 0
+			return EndIteration, nil
+		}
+		cg.rhoPrev = cg.rho
+		cg.first = false
 		cg.resume = 1
 		return EndIteration, nil
+
+	default:
+		panic("iterative: CG.Init not called")
 	}
 }
