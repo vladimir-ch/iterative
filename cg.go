@@ -6,18 +6,26 @@ package iterative
 
 import "github.com/gonum/floats"
 
+// CG implements the Conjugate Gradient iterative method with preconditioning
+// for solving the system of linear equations
+//  Ax = b,
+// where A is a symmetric positive definite matrix.
+//
+// CG needs MatVec and PSolve matrix operations.
 type CG struct {
 	first        bool
 	rho, rhoPrev float64
 	resume       int
 }
 
+// Init implements the Method interface.
 func (cg *CG) Init(dim int) int {
 	cg.first = true
 	cg.resume = 1
 	return 4
 }
 
+// Iterate implements the Method interface.
 func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 	const (
 		ri = iota

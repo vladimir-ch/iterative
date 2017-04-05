@@ -17,7 +17,7 @@ import (
 // where A is a non-symmetric matrix. For symmetric positive definite systems
 // use CG.
 //
-// BiCG needs MatVec and MatTransVec matrix operations.
+// BiCG needs MatVec, MatTransVec, PSolve, and PSolveTrans matrix operations.
 type BiCG struct {
 	first        bool
 	rho, rhoPrev float64
@@ -25,13 +25,14 @@ type BiCG struct {
 	resume       int
 }
 
-// Init implements
+// Init implements the Method interface.
 func (bicg *BiCG) Init(dim int) int {
 	bicg.first = true
 	bicg.resume = 1
 	return 6
 }
 
+// Iterate implements the Method interface.
 func (bicg *BiCG) Iterate(ctx *Context) (Operation, error) {
 	const (
 		ri  = 0

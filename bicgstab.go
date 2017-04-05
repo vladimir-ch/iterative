@@ -17,7 +17,7 @@ import (
 // where A is a non-symmetric matrix. For symmetric positive definite systems
 // use CG.
 //
-// BiCGStab needs MatVec and MatTransVec matrix operations.
+// BiCGStab needs MatVec and PSolve matrix operations.
 type BiCGStab struct {
 	first        bool
 	rho, rhoPrev float64
@@ -26,13 +26,14 @@ type BiCGStab struct {
 	resume       int
 }
 
-// Init implements
+// Init implements the Method interface.
 func (bicg *BiCGStab) Init(dim int) int {
 	bicg.first = true
 	bicg.resume = 1
 	return 7
 }
 
+// Iterate implements the Method interface.
 func (bicg *BiCGStab) Iterate(ctx *Context) (Operation, error) {
 	const (
 		ri    = 0
