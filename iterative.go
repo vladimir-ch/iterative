@@ -193,4 +193,11 @@ func defaultSettings(s *Settings, dim int) {
 	}
 }
 
+func reuse(v []float64, n int) []float64 {
+	if cap(v) < n {
+		return make([]float64, n)
+	}
+	return v[:n]
+}
+
 const dlamchE = 1.0 / (1 << 53)
