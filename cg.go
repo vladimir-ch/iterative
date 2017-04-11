@@ -13,66 +13,65 @@ import "github.com/gonum/floats"
 //
 // CG needs MatVec and PSolve matrix operations.
 type CG struct {
-	first        bool
+	first  bool
+	resume int
+
 	rho, rhoPrev float64
-	resume       int
+
+	z  []float64
+	p  []float64
+	ap []float64
 }
 
 // Init implements the Method interface.
-func (cg *CG) Init(dim int) int {
+func (cg *CG) Init(dim int) {
+	if dim <= 0 {
+		panic("iterative: dimension not positive")
+	}
+
+	cg.z = reuse(cg.z, dim)
+	cg.p = reuse(cg.p, dim)
+	cg.ap = reuse(cg.ap, dim)
 	cg.first = true
 	cg.resume = 1
-	return 4
 }
 
 // Iterate implements the Method interface.
 func (cg *CG) Iterate(ctx *Context) (Operation, error) {
-	const (
-		ri = iota
-		zi
-		pi
-		Api
-	)
-	r := ctx.Vectors[ri]
 	switch cg.resume {
 	case 1:
-		if cg.first {
-			copy(r, ctx.Residual)
-		}
-		ctx.Src = ri
-		ctx.Dst = zi
+		ctx.Src = ctx.Residual
+		ctx.Dst = cg.z
 		cg.resume = 2
 		return PSolve, nil
 		// Solve M z = r_{i-1}
 	case 2:
-		z, p := ctx.Vectors[zi], ctx.Vectors[pi]
-		cg.rho = floats.Dot(r, z) // ρ_i = r_{i-1} · z
+		cg.rho = floats.Dot(ctx.Residual, cg.z) // ρ_i = r_{i-1} · z
 		if !cg.first {
-			beta := cg.rho / cg.rhoPrev  // β = ρ_i / ρ_{i-1}
-			floats.AddScaled(z, beta, p) // z = z + β p_{i-1}
+			beta := cg.rho / cg.rhoPrev        // β = ρ_i / ρ_{i-1}
+			floats.AddScaled(cg.z, beta, cg.p) // z = z + β p_{i-1}
 		}
-		copy(p, z) // p_i = z
+		copy(cg.p, cg.z) // p_i = z
 
-		ctx.Src = pi
-		ctx.Dst = Api
+		ctx.Src = cg.p
+		ctx.Dst = cg.ap
 		cg.resume = 3
 		return MatVec, nil
 		// Compute Ap_i
 	case 3:
-		p, Ap := ctx.Vectors[pi], ctx.Vectors[Api]
-		alpha := cg.rho / floats.Dot(p, Ap) // α = ρ_i / (p_i · Ap_i)
-		floats.AddScaled(r, -alpha, Ap)     // r_i = r_{i-1} - α Ap_i
-		floats.AddScaled(ctx.X, alpha, p)   // x_i = x_{i-1} + α p_i
+		alpha := cg.rho / floats.Dot(cg.p, cg.ap)     // α = ρ_i / (p_i · Ap_i)
+		floats.AddScaled(ctx.Residual, -alpha, cg.ap) // r_i = r_{i-1} - α Ap_i
+		floats.AddScaled(ctx.X, alpha, cg.p)          // x_i = x_{i-1} + α p_i
 
-		copy(ctx.Residual, r)
-		ctx.Src = -1
-		ctx.Dst = -1
+		ctx.Src = nil
+		ctx.Dst = nil
+		ctx.ResidualNorm = floats.Norm(ctx.Residual, 2)
 		ctx.Converged = false
 		cg.resume = 4
-		return CheckResidual, nil
+		return CheckResidualNorm, nil
 	case 4:
 		if ctx.Converged {
-			cg.resume = 0
+			cg.resume = 0 // Calling Iterate again without Init will panic.
 			return EndIteration, nil
 		}
 		cg.rhoPrev = cg.rho

@@ -19,93 +19,96 @@ import (
 //
 // BiCG needs MatVec, MatTransVec, PSolve, and PSolveTrans matrix operations.
 type BiCG struct {
-	first        bool
+	first  bool
+	resume int
+
 	rho, rhoPrev float64
 	alpha        float64
-	resume       int
+
+	rt    []float64
+	z, zt []float64
+	p, pt []float64
 }
 
 // Init implements the Method interface.
-func (bicg *BiCG) Init(dim int) int {
-	bicg.first = true
-	bicg.resume = 1
-	return 6
+func (b *BiCG) Init(dim int) {
+	if dim <= 0 {
+		panic("iterative: dimension not positive")
+	}
+
+	b.rt = reuse(b.rt, dim)
+	b.z = reuse(b.z, dim)
+	b.zt = reuse(b.zt, dim)
+	b.p = reuse(b.p, dim)
+	b.pt = reuse(b.pt, dim)
+
+	b.first = true
+	b.resume = 1
 }
 
 // Iterate implements the Method interface.
-func (bicg *BiCG) Iterate(ctx *Context) (Operation, error) {
-	const (
-		ri  = 0
-		rti = 1
-		zi  = 2
-		zti = 3
-		pi  = 4
-		pti = 5
-		qi  = 2 // z and zt are not needed simultaneously
-		qti = 3 // with q and qt.
-	)
-	switch bicg.resume {
+func (b *BiCG) Iterate(ctx *Context) (Operation, error) {
+	switch b.resume {
 	case 1:
-		if bicg.first {
-			copy(ctx.Vectors[ri], ctx.Residual)
-			copy(ctx.Vectors[rti], ctx.Vectors[ri])
+		if b.first {
+			copy(b.rt, ctx.Residual)
 		}
-		ctx.Src = ri
-		ctx.Dst = zi
-		bicg.resume = 2
+		ctx.Src = ctx.Residual
+		ctx.Dst = b.z
+		b.resume = 2
 		return PSolve, nil
 		// Solve M z = r_{i-1}
 	case 2:
-		ctx.Src = rti
-		ctx.Dst = zti
-		bicg.resume = 3
+		ctx.Src = b.rt
+		ctx.Dst = b.zt
+		b.resume = 3
 		return PSolveTrans, nil
 		// Solve M^T zt = rt_{i-1}
 	case 3:
-		bicg.rho = floats.Dot(ctx.Vectors[zi], ctx.Vectors[rti])
-		if math.Abs(bicg.rho) < dlamchE*dlamchE {
-			bicg.resume = 0
+		b.rho = floats.Dot(b.z, b.rt)
+		if math.Abs(b.rho) < dlamchE*dlamchE {
+			b.resume = 0 // Calling Iterate again without Init will panic.
 			return NoOperation, errors.New("iterative: rho breakdown")
 		}
-		if !bicg.first {
-			beta := bicg.rho / bicg.rhoPrev
-			floats.AddScaled(ctx.Vectors[zi], beta, ctx.Vectors[pi])
-			floats.AddScaled(ctx.Vectors[zti], beta, ctx.Vectors[pti])
+		if !b.first {
+			beta := b.rho / b.rhoPrev
+			floats.AddScaled(b.z, beta, b.p)
+			floats.AddScaled(b.zt, beta, b.pt)
 		}
-		copy(ctx.Vectors[pi], ctx.Vectors[zi])
-		copy(ctx.Vectors[pti], ctx.Vectors[zti])
-		ctx.Src = pi
-		ctx.Dst = qi
-		bicg.resume = 4
+		copy(b.p, b.z)
+		copy(b.pt, b.zt)
+		ctx.Src = b.p
+		ctx.Dst = b.z // == q
+		b.resume = 4
 		return MatVec, nil
 		// q <- A p
 	case 4:
-		ctx.Src = pti
-		ctx.Dst = qti
-		bicg.resume = 5
+		ctx.Src = b.pt
+		ctx.Dst = b.zt // == qt
+		b.resume = 5
 		return MatTransVec, nil
 		// qt <- A^T pt
 	case 5:
-		bicg.alpha = bicg.rho / floats.Dot(ctx.Vectors[pti], ctx.Vectors[qi])
-		floats.AddScaled(ctx.X, bicg.alpha, ctx.Vectors[pi])
-		floats.AddScaled(ctx.Residual, -bicg.alpha, ctx.Vectors[qi])
-		ctx.Src = -1
-		ctx.Dst = -1
+		b.alpha = b.rho / floats.Dot(b.pt, b.z)
+		floats.AddScaled(ctx.X, b.alpha, b.p)
+		floats.AddScaled(ctx.Residual, -b.alpha, b.z)
+		ctx.Src = nil
+		ctx.Dst = nil
+		ctx.ResidualNorm = floats.Norm(ctx.Residual, 2)
 		ctx.Converged = false
-		bicg.resume = 6
-		return CheckResidual, nil
+		b.resume = 6
+		return CheckResidualNorm, nil
 	case 6:
 		if ctx.Converged {
 			// Make sure calling Iterate again without Init will panic.
-			bicg.resume = 0
+			b.resume = 0 // Calling Iterate again without Init will panic.
 			return EndIteration, nil
 		}
 		// Prepare for the next iteration.
-		copy(ctx.Vectors[ri], ctx.Residual)
-		floats.AddScaled(ctx.Vectors[rti], -bicg.alpha, ctx.Vectors[qti])
-		bicg.rhoPrev = bicg.rho
-		bicg.first = false
-		bicg.resume = 1
+		floats.AddScaled(b.rt, -b.alpha, b.zt)
+		b.rhoPrev = b.rho
+		b.first = false
+		b.resume = 1
 		return EndIteration, nil
 
 	default:

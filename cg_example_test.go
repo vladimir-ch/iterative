@@ -42,12 +42,12 @@ func ExampleCG() {
 		fmt.Println("Error:", err)
 	} else {
 		fmt.Printf("# iterations: %v\n", res.Stats.Iterations)
-		fmt.Printf("Final residual: %v\n", res.Stats.ResidualNorm)
+		fmt.Printf("Final residual: %.6e\n", res.Stats.ResidualNorm)
 		fmt.Printf("Solution: %.6f\n", res.X)
 	}
 
 	// Output:
 	// # iterations: 10
-	// Final residual: 5.46512340640647e-07
+	// Final residual: 6.495861e-08
 	// Solution: [-0.003341 0.006678 0.036530 0.085606 0.152981 0.237072 0.337006 0.447616 0.578244 0.682719 0.920847]
 }
