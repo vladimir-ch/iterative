@@ -37,7 +37,7 @@ func ExampleCG() {
 	A, b := L2Projector(0, 1, 10, func(x float64) float64 {
 		return x * math.Sin(x)
 	})
-	res, err := iterative.Solve(A, b, &iterative.CG{}, iterative.DefaultSettings())
+	res, err := iterative.Solve(A, b, &iterative.CG{}, iterative.Settings{})
 	if err != nil {
 		fmt.Println("Error:", err)
 	} else {
