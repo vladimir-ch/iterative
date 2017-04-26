@@ -12,7 +12,8 @@ import (
 )
 
 // MatrixOps describes the matrix of the
-// linear system.
+// linear system in terms of A*x and A^T*x
+// operations.
 type MatrixOps struct {
 	// Compute A*x and store the result
 	// into dst.
@@ -28,6 +29,8 @@ type MatrixOps struct {
 	MatTransVec func(dst, x []float64)
 }
 
+// Settings holds various settings for
+// solving a linear system.
 type Settings struct {
 	// X0 is an initial guess.
 	// If it is nil, the zero vector will
@@ -44,7 +47,22 @@ type Settings struct {
 	// Tolerance must be smaller than one
 	// and greater than the machine
 	// epsilon.
+	//
+	// If NormA is not zero, the stopping
+	// criterion used will be
+	//  |r_i| < Tolerance * (|A|*|x_i| + |b|),
+	// If NormA is zero (not available),
+	// the stopping criterion will be
+	//  |r_i| < Tolerance * |b|.
 	Tolerance float64
+
+	// NormA is an estimate of a norm |A|
+	// of A, for example, an approximation
+	// of the largest entry. Zero value
+	// means that the norm is unknown,
+	// and it will not be used in the
+	// stopping criterion.
+	NormA float64
 
 	// MaxIterations is the limit on the
 	// number of iterations.
@@ -82,15 +100,20 @@ func defaultSettings(s *Settings, dim int) {
 	}
 }
 
+// Result holds the result of an iterative
+// solve.
 type Result struct {
-	X     []float64
+	// X is the approximate solution.
+	X []float64
+	// Stats holds the statistics of the
+	// solve.
 	Stats Stats
 }
 
-// Stats holds statistics about the iterative process.
+// Stats holds statistics about an iterative solve.
 type Stats struct {
 	// Iterations is the number of
-	// iteration done by a Method.
+	// iteration done by Method.
 	Iterations int
 	// MatVec is the number of MatVec and
 	// MatTransVec operations commanded
@@ -111,6 +134,7 @@ type Stats struct {
 	Runtime time.Duration
 }
 
+// Solve
 func Solve(a MatrixOps, b []float64, method Method, settings Settings) (Result, error) {
 	stats := Stats{StartTime: time.Now()}
 
