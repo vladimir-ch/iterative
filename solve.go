@@ -100,8 +100,7 @@ func defaultSettings(s *Settings, dim int) {
 	}
 }
 
-// Result holds the result of an iterative
-// solve.
+// Result holds the result of an iterative solve.
 type Result struct {
 	// X is the approximate solution.
 	X []float64
@@ -134,18 +133,30 @@ type Stats struct {
 	Runtime time.Duration
 }
 
-// Solve
-func Solve(a MatrixOps, b []float64, method Method, settings Settings) (Result, error) {
+// LinearSolve solves the system of n linear equations
+//  A*x = b,
+// where the n×n matrix A is represented by the matrix-vector operations in a.
+// The dimension of the problem n is determined by the length of b.
+//
+// method is an iterative method used for finding an approximate solution of the
+// linear system. It must not be nil. The operations in a must provide what the
+// method needs.
+//
+// settings provide means for adjusting the iterative process. Zero values of
+// the fields mean default values.
+func LinearSolve(a MatrixOps, b []float64, method Method, settings Settings) (Result, error) {
 	stats := Stats{StartTime: time.Now()}
 
 	dim := len(b)
-	switch {
-	case dim == 0:
-		panic("iterative: zero dimension")
-	case a.MatVec == nil:
+	if a.MatVec == nil {
 		panic("iterative: nil matrix-vector multiplication")
-	case settings.X0 != nil && len(settings.X0) != dim:
+	}
+	if settings.X0 != nil && len(settings.X0) != dim {
 		panic("iterative: mismatched length of initial guess")
+	}
+
+	if dim == 0 {
+		return Result{Stats: stats}, nil
 	}
 
 	defaultSettings(&settings, dim)
@@ -200,7 +211,7 @@ func iterate(a MatrixOps, b []float64, ctx *Context, settings Settings, method M
 		case ComputeResidual:
 			a.MatVec(ctx.Residual, ctx.X)
 			stats.MatVec++
-			floats.AddScaledTo(ctx.Residual, b, -1, ctx.Residual) // r = b - Ax
+			floats.AddScaledTo(ctx.Residual, b, -1, ctx.Residual)
 
 		case MatVec, MatTransVec:
 			if op == MatVec {
