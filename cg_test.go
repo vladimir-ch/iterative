@@ -36,18 +36,14 @@ func TestCG(t *testing.T) {
 		A := tc.a
 		// Compute the right-hand side b so that the vector [1,1,...,1]
 		// is the solution.
-		x := make([]float64, n)
-		for i := range x {
-			x[i] = 1
+		want := make([]float64, n)
+		for i := range want {
+			want[i] = 1
 		}
 		b := make([]float64, n)
-		A.MatVec(b, x)
+		A.MatVec(b, want)
 		// Initial estimate is the zero vector.
-		want := make([]float64, n)
-		copy(want, x)
-		for i := range x {
-			x[i] = 0
-		}
+		x := make([]float64, n)
 
 		r, err := LinearSolve(A, b, &CG{}, Settings{
 			MaxIterations: tc.iters,
