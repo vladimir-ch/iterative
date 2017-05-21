@@ -53,7 +53,7 @@ func randomSPD(n int, rnd *rand.Rand) testCase {
 }
 
 // market returns a test matrix from the Matrix Market.
-func market(name string) testCase {
+func market(name string, tol float64) testCase {
 	f, err := os.Open("testdata/" + name + ".mtx.gz")
 	if err != nil {
 		panic(err)
@@ -71,7 +71,7 @@ func market(name string) testCase {
 		name:  name,
 		n:     n,
 		iters: 10 * n,
-		tol:   1e-7,
+		tol:   tol,
 		a: MatrixOps{
 			MatVec:      m.MulVec,
 			MatTransVec: m.MulTransVec,

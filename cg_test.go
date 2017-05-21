@@ -26,11 +26,11 @@ func TestCG(t *testing.T) {
 		randomSPD(100, rnd),
 		randomSPD(200, rnd),
 		randomSPD(500, rnd),
-		market("nos1"),
-		market("nos4"),
-		market("nos5"),
-		market("bcsstm20"),
-		market("bcsstm22"),
+		market("nos1", 1e-9),
+		market("nos4", 1e-12),
+		market("nos5", 1e-9),
+		market("bcsstm20", 1e-7),
+		market("bcsstm22", 1e-11),
 	} {
 		n := tc.n
 		A := tc.a
