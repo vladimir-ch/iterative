@@ -49,6 +49,7 @@ func TestCG(t *testing.T) {
 		})
 		if err != nil {
 			t.Errorf("Case %v (n=%v): unexpected error %v", tc.name, n, err)
+			continue
 		}
 		dist := floats.Distance(r.X, want, math.Inf(1))
 		if dist > tc.tol {
