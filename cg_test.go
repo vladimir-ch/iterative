@@ -42,8 +42,6 @@ func TestCG(t *testing.T) {
 		}
 		b := make([]float64, n)
 		A.MatVec(b, want)
-		// Initial estimate is the zero vector.
-		x := make([]float64, n)
 
 		r, err := LinearSolve(A, b, &CG{}, Settings{
 			MaxIterations: tc.iters,
