@@ -11,7 +11,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/vladimir-ch/iterative/internal/dok"
+	"github.com/vladimir-ch/iterative/internal/triplet"
 )
 
 var (
@@ -29,7 +29,7 @@ func NewReader(r io.Reader) *Reader {
 	}
 }
 
-func (r *Reader) Read() (*dok.Matrix, error) {
+func (r *Reader) Read() (*triplet.Matrix, error) {
 	r.s.Scan()
 	if err := r.s.Err(); err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (r *Reader) Read() (*dok.Matrix, error) {
 		return nil, errBadFormat
 	}
 
-	m := dok.New(nr, nc)
+	m := triplet.New(nr, nc)
 	for i := 0; i < nnz; i++ {
 		if !r.s.Scan() {
 			return nil, errBadFormat
@@ -91,9 +91,9 @@ func (r *Reader) Read() (*dok.Matrix, error) {
 		if j < 1 || nc < j {
 			return nil, errBadFormat
 		}
-		m.Set(i-1, j-1, v)
+		m.Append(i-1, j-1, v)
 		if sym {
-			m.Set(j-1, i-1, v)
+			m.Append(j-1, i-1, v)
 		}
 	}
 	return m, nil
