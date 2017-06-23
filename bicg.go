@@ -33,7 +33,7 @@ type BiCG struct {
 // Init implements the Method interface.
 func (b *BiCG) Init(dim int) {
 	if dim <= 0 {
-		panic("iterative: dimension not positive")
+		panic("BiCG: dimension not positive")
 	}
 
 	b.rt = reuse(b.rt, dim)
@@ -68,7 +68,7 @@ func (b *BiCG) Iterate(ctx *Context) (Operation, error) {
 		b.rho = floats.Dot(b.z, b.rt)
 		if math.Abs(b.rho) < dlamchE*dlamchE {
 			b.resume = 0 // Calling Iterate again without Init will panic.
-			return NoOperation, errors.New("iterative: rho breakdown")
+			return NoOperation, errors.New("BiCG: rho breakdown")
 		}
 		if !b.first {
 			beta := b.rho / b.rhoPrev
@@ -112,6 +112,6 @@ func (b *BiCG) Iterate(ctx *Context) (Operation, error) {
 		return EndIteration, nil
 
 	default:
-		panic("iterative: BiCG.Init not called")
+		panic("BiCG: Init not called")
 	}
 }
