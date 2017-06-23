@@ -9,9 +9,9 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/gonum/blas"
-	"github.com/gonum/blas/blas64"
 	"github.com/vladimir-ch/iterative/internal/mmarket"
+	"gonum.org/v1/gonum/blas"
+	"gonum.org/v1/gonum/blas/blas64"
 )
 
 type testCase struct {

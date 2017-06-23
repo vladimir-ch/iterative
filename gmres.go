@@ -7,9 +7,9 @@ package iterative
 import (
 	"math"
 
-	"github.com/gonum/blas"
-	"github.com/gonum/blas/blas64"
-	"github.com/gonum/floats"
+	"gonum.org/v1/gonum/blas"
+	"gonum.org/v1/gonum/blas/blas64"
+	"gonum.org/v1/gonum/floats"
 )
 
 // GMRES implements the Generalized Minimum Residual method with the modified

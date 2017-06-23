@@ -38,7 +38,7 @@ type BiCGSTAB struct {
 // Init implements the Method interface.
 func (b *BiCGSTAB) Init(dim int) {
 	if dim <= 0 {
-		panic("iterative: dimension not positive")
+		panic("BiCGSTAB: dimension not positive")
 	}
 
 	b.rt = reuse(b.rt, dim)
@@ -60,9 +60,9 @@ func (b *BiCGSTAB) Iterate(ctx *Context) (Operation, error) {
 			copy(b.rt, ctx.Residual)
 		}
 		b.rho = floats.Dot(b.rt, ctx.Residual)
-		if b.rho < dlamchE*dlamchE {
+		if math.Abs(b.rho) < dlamchE*dlamchE {
 			b.resume = 0 // Calling Iterate again without Init will panic.
-			return NoOperation, errors.New("iterative: rho breakdown")
+			return NoOperation, errors.New("BiCGSTAB: rho breakdown")
 		}
 		if b.first {
 			copy(b.p, ctx.Residual)
@@ -100,7 +100,7 @@ func (b *BiCGSTAB) Iterate(ctx *Context) (Operation, error) {
 			b.resume = 0 // Calling Iterate again without Init will panic.
 			return EndIteration, nil
 		}
-		ctx.Src = ctx.Residual
+		ctx.Src = b.s
 		ctx.Dst = b.shat
 		b.resume = 5
 		return PSolve, nil
@@ -128,7 +128,7 @@ func (b *BiCGSTAB) Iterate(ctx *Context) (Operation, error) {
 			return EndIteration, nil
 		}
 		if math.Abs(b.omega) < dlamchE*dlamchE {
-			return NoOperation, errors.New("iterative: omega breakdown")
+			return NoOperation, errors.New("BiCGSTAB: omega breakdown")
 		}
 		b.rhoPrev = b.rho
 		b.first = false
@@ -136,6 +136,6 @@ func (b *BiCGSTAB) Iterate(ctx *Context) (Operation, error) {
 		return EndIteration, nil
 
 	default:
-		panic("iterative: BiCGSTAB.Init not called")
+		panic("BiCGSTAB: Init not called")
 	}
 }
