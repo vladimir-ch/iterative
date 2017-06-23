@@ -26,7 +26,7 @@ type CG struct {
 // Init implements the Method interface.
 func (cg *CG) Init(dim int) {
 	if dim <= 0 {
-		panic("iterative: dimension not positive")
+		panic("CG: dimension not positive")
 	}
 
 	cg.z = reuse(cg.z, dim)
@@ -80,6 +80,6 @@ func (cg *CG) Iterate(ctx *Context) (Operation, error) {
 		return EndIteration, nil
 
 	default:
-		panic("iterative: CG.Init not called")
+		panic("CG: Init not called")
 	}
 }

@@ -39,16 +39,17 @@ type givens struct {
 	c, s float64
 }
 
+// Init implements the Method interface.
 func (g *GMRES) Init(dim int) {
 	if dim <= 0 {
-		panic("iterative: dimension not positive")
+		panic("GMRES: dimension not positive")
 	}
 
 	if g.Restart == 0 {
 		g.Restart = dim
 	}
 	if g.Restart <= 0 || dim < g.Restart {
-		panic("iterative: invalid GMRES.Restart")
+		panic("GMRES: invalid value of Restart")
 	}
 	k := g.Restart
 
@@ -70,6 +71,7 @@ func (g *GMRES) Init(dim int) {
 	g.resume = 1
 }
 
+// Iterate implements the Method interface.
 func (g *GMRES) Iterate(ctx *Context) (Operation, error) {
 	n := len(ctx.X)
 
@@ -190,10 +192,11 @@ func (g *GMRES) Iterate(ctx *Context) (Operation, error) {
 		return EndIteration, nil
 
 	default:
-		panic("iterative: GMRES.Init not called")
+		panic("GMRES: Init not called")
 	}
 }
 
+// update computes the current solution vector and stores it in x.
 func (g *GMRES) update(x []float64) {
 	k := g.j + 1 // Number of valid columns of V.
 	y := g.y[:k]
@@ -211,6 +214,7 @@ func (g *GMRES) update(x []float64) {
 	}
 }
 
+// drotg returns Givens plane rotation.
 func drotg(a, b float64) givens {
 	if b == 0 {
 		return givens{c: 1, s: 0}
@@ -225,6 +229,7 @@ func drotg(a, b float64) givens {
 	return givens{c: c, s: tmp * c}
 }
 
+// rotvec applies Givens rotation g to the vector [x,y] and returns the result.
 func rotvec(g givens, x, y float64) (rx, ry float64) {
 	rx = g.c*x - g.s*y
 	ry = g.s*x + g.c*y
