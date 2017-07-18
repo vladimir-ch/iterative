@@ -11,83 +11,72 @@ import (
 	"github.com/gonum/floats"
 )
 
-// MatrixOps describes the matrix of the
-// linear system in terms of A*x and A^T*x
-// operations.
+// MatrixOps describes the matrix of the linear system in terms of A*x
+// and A^T*x operations.
+// TODO(vladimir-ch): Should this be an interface?
 type MatrixOps struct {
-	// Compute A*x and store the result
-	// into dst.
-	// It must be non-nil.
+	// MatVec computes A*x and stores the
+	// result into dst. It must be non-nil.
 	MatVec func(dst, x []float64)
 
-	// Compute A^T*x and store the result
-	// into dst.
-	// If the matrix is symmetric and a
-	// solver for symmetric systems is
-	// used (like CG), MatTransVec can be
+	// MatTransVec computes A^T*x and stores
+	// the result into dst. If the Method does
+	// not command MatTransVec, this can be
 	// nil.
 	MatTransVec func(dst, x []float64)
 }
 
-// Settings holds various settings for
-// solving a linear system.
+// Settings holds various settings for solving a linear system.
 type Settings struct {
 	// X0 is an initial guess.
-	// If it is nil, the zero vector will
-	// be used.
-	// If it is not nil, the length of X0
-	// must be equal to the dimension of
-	// the system.
+	// If it is nil, the zero vector will be
+	// used.
+	// If it is not nil, the length of X0 must
+	// be equal to the dimension of the
+	// system.
 	X0 []float64
 
-	// Tolerance specifies error
-	// tolerance for the final
-	// approximate solution produced by
-	// the iterative method.
-	// Tolerance must be smaller than one
-	// and greater than the machine
-	// epsilon.
+	// Tolerance specifies error tolerance for
+	// the final approximate solution produced
+	// by the iterative method. Tolerance must
+	// be smaller than one and greater than
+	// the machine epsilon.
 	//
 	// If NormA is not zero, the stopping
 	// criterion used will be
 	//  |r_i| < Tolerance * (|A|*|x_i| + |b|),
-	// If NormA is zero (not available),
-	// the stopping criterion will be
+	// If NormA is zero (not available), the
+	// stopping criterion will be
 	//  |r_i| < Tolerance * |b|.
 	Tolerance float64
 
-	// NormA is an estimate of a norm |A|
-	// of A, for example, an approximation
-	// of the largest entry. Zero value
-	// means that the norm is unknown,
-	// and it will not be used in the
-	// stopping criterion.
+	// NormA is an estimate of a norm |A| of
+	// A, for example, an approximation of the
+	// largest entry. Zero value means that
+	// the norm is unknown, and it will not be
+	// used in the stopping criterion.
 	NormA float64
 
 	// MaxIterations is the limit on the
 	// number of iterations.
-	// If it is zero, it will be set to
-	// twice the dimension of the system.
+	// If it is zero, it will be set to twice
+	// the dimension of the system.
 	MaxIterations int
 
-	// PSolve describes the
-	// preconditioner solve that stores
-	// into dst the solution of the
-	// system
+	// PSolve describes the preconditioner
+	// solve that stores into dst the solution
+	// of the system
 	//  M z = rhs.
-	// If it is nil, no preconditioning
-	// will be used (M is the
-	// identitify).
+	// If it is nil, no preconditioning will
+	// be used (M is the identitify).
 	PSolve func(dst, rhs []float64) error
 
 	// PSolveTrans describes the
-	// preconditioner solve that stores
-	// into dst the solution of the
-	// system
+	// preconditioner solve that stores into
+	// dst the solution of the system
 	//  M^T z = rhs.
-	// If it is nil, no preconditioning
-	// will be used (M is the
-	// identitify).
+	// If it is nil, no preconditioning will
+	// be used (M is the identitify).
 	PSolveTrans func(dst, rhs []float64) error
 }
 
@@ -111,39 +100,40 @@ type Result struct {
 
 // Stats holds statistics about an iterative solve.
 type Stats struct {
-	// Iterations is the number of
-	// iteration done by Method.
+	// Iterations is the number of iteration
+	// done by Method.
 	Iterations int
 	// MatVec is the number of MatVec and
-	// MatTransVec operations commanded
-	// by a Method.
+	// MatTransVec operations commanded by
+	// Method.
 	MatVec int
 	// PSolve is the number of PSolve and
-	// PSolveTrans operations commanded
-	// by a Method.
+	// PSolveTrans operations commanded by
+	// Method.
 	PSolve int
-	// ResidualNorm is the final norm of
-	// the residual.
+	// ResidualNorm is the final norm of the
+	// residual.
 	ResidualNorm float64
-	// StartTime is an approximate time
-	// when the solve was started.
+	// StartTime is an approximate time when
+	// the solve was started.
 	StartTime time.Time
-	// Runtime is an approximate duration
-	// of the solve.
+	// Runtime is an approximate duration of
+	// the solve.
 	Runtime time.Duration
 }
 
 // LinearSolve solves the system of n linear equations
 //  A*x = b,
-// where the n×n matrix A is represented by the matrix-vector operations in a.
-// The dimension of the problem n is determined by the length of b.
+// where the n×n matrix A is represented by the matrix-vector
+// operations in a. The dimension of the problem n is determined by
+// the length of b.
 //
-// method is an iterative method used for finding an approximate solution of the
-// linear system. It must not be nil. The operations in a must provide what the
-// method needs.
+// method is an iterative method used for finding an approximate
+// solution of the linear system. It must not be nil. The operations
+// in a must provide what the method needs.
 //
-// settings provide means for adjusting the iterative process. Zero values of
-// the fields mean default values.
+// settings provide means for adjusting the iterative process. Zero
+// values of the fields mean default values.
 func LinearSolve(a MatrixOps, b []float64, method Method, settings Settings) (Result, error) {
 	stats := Stats{StartTime: time.Now()}
 
@@ -160,7 +150,7 @@ func LinearSolve(a MatrixOps, b []float64, method Method, settings Settings) (Re
 	}
 
 	defaultSettings(&settings, dim)
-	if settings.Tolerance < dlamchE || 1 <= settings.Tolerance {
+	if settings.Tolerance < eps || 1 <= settings.Tolerance {
 		panic("iterative: invalid tolerance")
 	}
 
@@ -237,6 +227,18 @@ func iterate(a MatrixOps, b []float64, ctx *Context, settings Settings, method M
 			stats.PSolve++
 
 		case CheckResidualNorm:
+			// TODO(vladimir-ch): This is currently not
+			// used because ctx.X is not guaranteed to be
+			// valid when this operation is requested.
+			// There is also the question of in which norm
+			// x should be measured (and similarly for b).
+			//
+			// if settings.NormA != 0 {
+			// 	xnorm := floats.Norm(ctx.X, 2)
+			// 	ctx.Converged = ctx.ResidualNorm/(settings.NormA*xnorm+bnorm) < settings.Tolerance
+			// } else {
+			// 	ctx.Converged = ctx.ResidualNorm/bnorm < settings.Tolerance
+			// }
 			ctx.Converged = ctx.ResidualNorm/bnorm < settings.Tolerance
 
 		case EndIteration:

@@ -30,7 +30,7 @@ func TestBiCGSTAB(t *testing.T) {
 		market("nos4", 1e-12),
 		market("nos5", 1e-12),
 		market("bcsstm20", 1e-9),
-		// market("bcsstm22", 1e-12),
+		market("bcsstm22", 1e-10),
 		// market("steam1", 1e-8),
 		// market("steam3", 1e-8),
 		market("e05r0000", 1e-10),

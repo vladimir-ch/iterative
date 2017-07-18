@@ -60,7 +60,7 @@ func (b *BiCGSTAB) Iterate(ctx *Context) (Operation, error) {
 			copy(b.rt, ctx.Residual)
 		}
 		b.rho = floats.Dot(b.rt, ctx.Residual)
-		if math.Abs(b.rho) < dlamchE*dlamchE {
+		if math.Abs(b.rho) < rhoBreakdownTol {
 			b.resume = 0 // Calling Iterate again without Init will panic.
 			return NoOperation, errors.New("BiCGSTAB: rho breakdown")
 		}
@@ -127,7 +127,7 @@ func (b *BiCGSTAB) Iterate(ctx *Context) (Operation, error) {
 			b.resume = 0 // Calling Iterate again without Init will panic.
 			return EndIteration, nil
 		}
-		if math.Abs(b.omega) < dlamchE*dlamchE {
+		if math.Abs(b.omega) < omegaBreakdownTol {
 			return NoOperation, errors.New("BiCGSTAB: omega breakdown")
 		}
 		b.rhoPrev = b.rho

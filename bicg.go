@@ -66,7 +66,7 @@ func (b *BiCG) Iterate(ctx *Context) (Operation, error) {
 		// Solve M^T zt = rt_{i-1}
 	case 3:
 		b.rho = floats.Dot(b.z, b.rt)
-		if math.Abs(b.rho) < dlamchE*dlamchE {
+		if math.Abs(b.rho) < rhoBreakdownTol {
 			b.resume = 0 // Calling Iterate again without Init will panic.
 			return NoOperation, errors.New("BiCG: rho breakdown")
 		}
